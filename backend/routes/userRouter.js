@@ -38,12 +38,12 @@ userRouter.post('/signup', async (req, res) => {
         });
     }
 
-    const cryptedPassword = new Promise((resolve, reject) => {
+    const cryptedPassword = await new Promise((resolve, reject) => {
         bcrypt.hash(req.body.password, 5, function (err, hash) {
             if (err) {
                 reject(err);
             }
-            resolve();
+            resolve(hash);
         })
     });
 
@@ -63,7 +63,7 @@ userRouter.post('/signup', async (req, res) => {
     });
 });
 
-routes.post('/signin', async (req, res) => {
+userRouter.post('/signin', async (req, res) => {
     const { success, error } = signinBody.safeParse(req.body);
 
     if (!success) {
@@ -76,8 +76,8 @@ routes.post('/signin', async (req, res) => {
         username: req.body.username
     });
 
-    const passwordMatched = new removeEventListener((resolve, reject) => {
-        bcrypt.compare(req.body.username, user.password, function (err, result) {
+    const passwordMatched = await new Promise((resolve, reject) => {
+        bcrypt.compare(req.body.password, user.password, function (err, result) {
             if(err) {
                 reject(err);
             }
@@ -90,7 +90,7 @@ routes.post('/signin', async (req, res) => {
         });
     }
 
-    const token = jwt.sign({ userId: user._id })
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET)
 
     if (user) {
         return res.json({
@@ -98,12 +98,9 @@ routes.post('/signin', async (req, res) => {
             token: token
         });
     }
-
     return res.json({
         message: 'Error due to incorrect inputs!' + JSON.stringify(error.issues)
     });
-
-
 });
 
 
