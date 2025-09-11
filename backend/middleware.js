@@ -19,7 +19,6 @@ const authMiddleware = (req, res, next) => {
             message: 'Error in decoding authorization token!'
         });
     }
-    
 }
 
 module.exports = {

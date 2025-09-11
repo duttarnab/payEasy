@@ -39,6 +39,18 @@ const userSchema = new mongoose.Schema({
     }
   });
 
-  const User = mongoose.model('User', userSchema);
+  const accountSchema = new mongoose.Schema({
+    userId: {
+      type: String,
+      required: true
+    },
+    amount: {
+      type: Number,
+      required: false
+    }
+  });
 
-  module.exports = {User};
+  const User = mongoose.model('User', userSchema);
+  const Account = mongoose.model('Account', accountSchema);
+
+  module.exports = {User, Account};

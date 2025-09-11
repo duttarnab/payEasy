@@ -4,6 +4,8 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const { JWT_SECRET } = require('../config');
 const { User } = require('../schema/db');
+const { authMiddleware } = require('../middleware');
+
 const userRouter = express.Router();
 
 const signupBody = zod.object({
@@ -19,11 +21,17 @@ const signinBody = zod.object({
     password: zod.string()
 });
 
+const userUpdateBody = zod.object({
+    password: zod.string().min(3).max(15),
+    firstName: zod.string().min(3).max(15),
+    lastName: zod.string().min(3).max(15)
+});
+
 userRouter.post('/signup', async (req, res) => {
 
     const { success, error } = signupBody.safeParse(req.body);
     if (!success) {
-        return res.status(411).json({
+        return res.status(400).json({
             message: "User registered Failed due to incorrect inputs!" + JSON.stringify(error.issues)
         });
     }
@@ -33,7 +41,7 @@ userRouter.post('/signup', async (req, res) => {
     });
 
     if (userExist) {
-        return res.status(411).json({
+        return res.status(500).json({
             message: "User with same username already exist!" + JSON.stringify(error.issues)
         });
     }
@@ -67,7 +75,7 @@ userRouter.post('/signin', async (req, res) => {
     const { success, error } = signinBody.safeParse(req.body);
 
     if (!success) {
-        return res.json({
+        return res.status(400).json({
             message: 'Error due to incorrect inputs!' + JSON.stringify(error.issues)
         });
     }
@@ -78,14 +86,14 @@ userRouter.post('/signin', async (req, res) => {
 
     const passwordMatched = await new Promise((resolve, reject) => {
         bcrypt.compare(req.body.password, user.password, function (err, result) {
-            if(err) {
+            if (err) {
                 reject(err);
             }
             resolve(result);
         })
     });
-    if(!passwordMatched) {
-        return res.json({
+    if (!passwordMatched) {
+        return res.status(400).json({
             message: 'Incorrect username or password'
         });
     }
@@ -98,11 +106,62 @@ userRouter.post('/signin', async (req, res) => {
             token: token
         });
     }
-    return res.json({
+    return res.status(500).json({
         message: 'Error due to incorrect inputs!' + JSON.stringify(error.issues)
     });
 });
 
+userRouter.put('/', async (authMiddleware, req, res) => {
 
+    const { success, error } = userUpdateBody.safeParse(req.body);
+
+    if (!success) {
+        return res.status(400).json({
+            message: 'Error in updating records' + JSON.stringify(error.issues)
+        });
+    }
+
+    const user = await User.updateOne({
+        _id: req.body.userId
+    }, req.body);
+
+    res.json({
+        message: 'User updated successfully!'
+    });
+
+});
+
+userRouter.get('/bulk', async (req, res) => {
+    const filter = req.query.filter || "";
+
+    const users = await User.find({
+        $or: [
+            {
+                username: { "$regex": filter }
+            },
+            {
+                firstName: { "$regex": filter }
+            },
+            {
+                lastName: { "$regex": filter }
+            }
+        ]
+    });
+
+    if (users) {
+        return res.json(users.map(user => ({
+            userame: user.username,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            _id: user._id,
+        })
+        ));
+    }
+    return res.json({
+        message: "Error is fetching user details."
+    });
+
+});
 
 module.exports = userRouter;
